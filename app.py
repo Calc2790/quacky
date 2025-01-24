@@ -76,3 +76,65 @@ return jsonify({"message": "Post not found"}), 404
 
 if __name__ == "__main__":
 app.run(debug=True)
+
+user = User.query.filter_by(username=username).first()
+if user and bcrypt.check_password_hash(user.password, password):
+access_token = create_access_token(identity=user.id)
+return jsonify({"access_token": access_token})
+else:
+return jsonify({"message": "Invalid username or password"}), 401
+
+@app.route("/api/posts", methods=["POST"])
+@jwt_required
+def create_post():
+user_id = get_jwt_identity()
+content = request.json["content"]
+post = Post(user_id=user_id, content=content)
+db.session.add(post)
+db.session.commit()
+return jsonify({"message": "Post created successfully"})
+
+@app.route("/api/posts/like", methods=["POST"])
+@jwt_required
+def like_post():
+post_id = request.json["post_id"]
+post = Post.query.get(post_id)
+if post:
+user_id = get_jwt_identity()
+if post.user_id == user_id:
+return jsonify({"message": "You cannot like your own post"}), 400
+post.likes += 1
+db.session.commit()
+return jsonify({"message": "Post liked successfully"})
+else:
+return jsonify({"message": "Post not found"}), 404
+
+@app.route("/api/posts/<int:post_id>", methods=["GET"])
+def get_post(post_id):
+post = Post.query.get(post_id)
+if post:
+comments = Comment.query.filter_by(post_id=post_id).all()
+return jsonify({"content": post.content, "likes": post.likes, "comments": [comment.content for comment in comments]})
+else:
+return jsonify({"message": "Post not found"}), 404
+
+@app.route("/api/comments", methods=["POST"])
+@jwt_required
+def create_comment():
+user_id = get_jwt_identity()
+post_id = request.json["post_id"]
+content = request.json["content"]
+comment = Comment(post_id=post_id, user_id=user_id, content=content)
+db.session.add(comment)
+db.session.commit()
+return jsonify({"message": "Comment created successfully"})
+
+@app.route("/api/comments/<int:comment_id>", methods=["GET"])
+def get_comment(comment_id):
+comment = Comment.query.get(comment_id)
+if comment:
+return jsonify({"content": comment.content})
+else:
+return jsonify({"message": "Comment not found"}), 404
+
+if name == "main":
