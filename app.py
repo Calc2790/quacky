@@ -51,3 +51,28 @@ post = Post(user_id=user_id, content=content)
 db.session.add(post)
 db.session.commit()
 return jsonify({"message": "Post created successfully"})
+@app.route("/api/posts/like", methods=["POST"])
+@jwt_required
+def like_post():
+post_id = request.json["post_id"]
+post = Post.query.get(post_id)
+if post:
+user_id = get_jwt_identity()
+if post.user_id == user_id:
+return jsonify({"message": "You cannot like your own post"}), 400
+post.likes += 1
+db.session.commit()
+return jsonify({"message": "Post liked successfully"})
+else:
+return jsonify({"message": "Post not found"}), 404
+
+@app.route("/api/posts/<int:post_id>", methods=["GET"])
+def get_post(post_id):
+post = Post.query.get(post_id)
+if post:
+return jsonify({"content": post.content, "likes": post.likes})
+else:
+return jsonify({"message": "Post not found"}), 404
+
+if __name__ == "__main__":
+app.run(debug=True)
